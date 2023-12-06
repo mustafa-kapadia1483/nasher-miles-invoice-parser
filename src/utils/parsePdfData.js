@@ -280,7 +280,7 @@ function parseAmazonInvoice(Texts) {
   };
 }
 
-function parseFlipkartInvoice(Texts) {
+function parseFlipkartInvoice(Texts, text) {
   /* 
     FSN in Flipkart Invoice is considered as ASIN 
     Flipkart Invoices have 2 variations: 1 -> With ASIN, 2 -> Without ASIN
@@ -293,17 +293,29 @@ function parseFlipkartInvoice(Texts) {
     return "Non FSN Flipkart invoices are not supported yet.";
   }
 
-  let invoiceDate = "",
-    orderId = "";
-  for (let i in Texts) {
+  let orderId = text.match(/(?<=order\s+id:\s+)\w+/gi)?.[0];
+  let invoiceDate = text.match(
+    /(?<=order\s+date:\s+)(\d{1,4})[\s\p{Dash}.\/](\d{1,2}|\w+)[\s\p{Dash}.\/](\d{2,4})/gimu
+  )?.[0];
+  /* 
+    let invoiceDate = "",
+      orderId = "";
+    for (let i in Texts) {
     let { R } = Texts[i];
     if (orderId.length == 0) {
       let text = decodeAndExtractText(R[0].T, /(?<=order\s+id:\s+)\w+/gi);
 
       if (text.length > 0) {
         orderId = text;
+      } else {
+        text = decodeAndExtractText(R[0].T, /order\s+id/gi);
+        if (text?.length > 0) {
+          orderId = decodeAndExtractText(Texts[i + 1]?.R[0].T);
+        }
       }
     }
+
+    
 
     if (invoiceDate.length == 0) {
       let text = decodeAndExtractText(Texts[i - 1]?.R[0].T, DATE_REGEX);
@@ -316,7 +328,7 @@ function parseFlipkartInvoice(Texts) {
     if (invoiceDate.length > 0 && orderId.length > 0) {
       break;
     }
-  }
+  } */
 
   let invoiceDateArr = invoiceDate.split(/[\p{Dash}.\/]/gu);
   let endDate = getEndDate(
@@ -899,7 +911,7 @@ async function parsePdfData(filePath) {
           )
         ) {
           platform = "Flipkart";
-          extractedObj = parseFlipkartInvoice(Texts);
+          extractedObj = parseFlipkartInvoice(Texts, text);
         } else if (
           Texts.some(({ R }) =>
             decodeAndExtractText(R[0].T).toLowerCase().includes("tatacliq")
