@@ -475,7 +475,7 @@ function parseFlipkartWithoutFsnInvoice(text) {
   };
 }
 
-function parseMyntraInvoice(Texts) {
+function parseMyntraInvoice(Texts, text) {
   let invoiceDate = "",
     orderId = "";
 
@@ -536,9 +536,7 @@ function parseMyntraInvoice(Texts) {
   const FIRST_RS_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().endsWith("rs")
   );
-  let totalInvoiceAmount = decodeAndExtractText(
-    Texts[FIRST_RS_TEXT_INDEX + 1].R[0].T
-  );
+  let totalInvoiceAmount = text.match(/(?<=totalrs\s+)[\d.]+/gim)?.[0];
 
   const CESS_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().startsWith("cess")
@@ -911,7 +909,7 @@ async function parsePdfData(filePath) {
           )
         ) {
           platform = "Myntra";
-          extractedObj = parseMyntraInvoice(Texts);
+          extractedObj = parseMyntraInvoice(Texts, text);
         } else if (
           Texts.some(({ R }) =>
             decodeAndExtractText(R[0].T).includes("Flipkart")
