@@ -452,7 +452,11 @@ function parseFlipkartWithoutFsnInvoice(text) {
 
   const billToZipCode = text.match(/\d{6}(?=,in\p{Dash})/gimu)?.[0];
 
-  let billToState = text.match(/(?<=\d{6},in\p{Dash})\w{2}/gimu)?.at(-1);
+  let billToState = text
+    .match(/(?<=\d{6},in\p{Dash})[\w\s]{2,4}/gimu)
+    ?.at(-1)
+    ?.replaceAll(/\s+/g, "")
+    .substring(0, 2);
   if (stateMappingJson.hasOwnProperty(billToState)) {
     billToState = stateMappingJson[billToState];
   }
