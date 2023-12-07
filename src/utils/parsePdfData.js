@@ -23,6 +23,7 @@ function addDays(date, days) {
 }
 
 function getEndDate(date) {
+  const DATE_FORMAT = "%b %d, %Y";
   const warrantyEndDate = addDays(date, 365);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -30,11 +31,17 @@ function getEndDate(date) {
   console.log({ date, warrantyEndDate });
 
   if (warrantyEndDate.getTime() > today.getTime()) {
-    let extendedWarrantEndDate = addDays(warrantyEndDate, 182);
+    let extendedWarrantEndDate = addDays(warrantyEndDate, 178);
 
-    return parseDate("%b %d, %Y", extendedWarrantEndDate);
+    return {
+      startDate: parseDate(DATE_FORMAT, date),
+      endDate: parseDate(DATE_FORMAT, extendedWarrantEndDate),
+    };
   } else {
-    return "Not Applicable";
+    return {
+      startDate: parseDate(DATE_FORMAT, date),
+      endDate: "Not Applicable",
+    };
   }
 }
 
@@ -63,7 +70,7 @@ function parseNasherMilesInvoice(Texts) {
   invoiceDate = decodeAndExtractText(invoiceDate, DATE_REGEX);
 
   const invoiceDateAr = invoiceDate.split(/\p{Dash}/gu);
-  let endDate = getEndDate(
+  let { startDate, endDate } = getEndDate(
     new Date(invoiceDateAr[0], invoiceDateAr[1] - 1, invoiceDateAr[2])
   );
 
@@ -122,7 +129,7 @@ function parseNasherMilesInvoice(Texts) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     totalInvoiceAmount,
     billToName,
@@ -255,7 +262,7 @@ function parseAmazonInvoice(Texts) {
     dateAr.at(-3)
   );
   invoiceDate = parseDate("%b %d, %Y", invoiceDateObj);
-  let endDate = getEndDate(invoiceDateObj);
+  let { startDate, endDate } = getEndDate(invoiceDateObj);
 
   const AMOUNT_IN_WORDS_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().includes("amount in words")
@@ -268,7 +275,7 @@ function parseAmazonInvoice(Texts) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToState,
@@ -330,8 +337,8 @@ function parseFlipkartInvoice(Texts, text) {
     }
   } */
 
-  let invoiceDateArr = invoiceDate.split(/[\p{Dash}.\/]/gu);
-  let endDate = getEndDate(
+  let invoiceDateArr = invoiceDate.split(/[\p{Dash}\/]/gu);
+  let { startDate, endDate } = getEndDate(
     new Date(invoiceDateArr[2], invoiceDateArr[1] - 1, invoiceDateArr[0])
   );
 
@@ -415,7 +422,7 @@ function parseFlipkartInvoice(Texts, text) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToState,
@@ -434,7 +441,7 @@ function parseFlipkartWithoutFsnInvoice(text) {
   )[0];
 
   const invoiceDateArr = invoiceDate.split(/[\p{Dash}.\/]/gu);
-  const endDate = getEndDate(
+  const { startDate, endDate } = getEndDate(
     new Date(invoiceDateArr[2], invoiceDateArr[1] - 1, invoiceDateArr[0])
   );
 
@@ -457,7 +464,7 @@ function parseFlipkartWithoutFsnInvoice(text) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToState,
@@ -496,7 +503,7 @@ function parseMyntraInvoice(Texts) {
     }
   }
 
-  const endDate = getEndDate(new Date(invoiceDate));
+  const { startDate, endDate } = getEndDate(new Date(invoiceDate));
 
   const BILL_TO_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().startsWith("bill to")
@@ -570,7 +577,7 @@ function parseMyntraInvoice(Texts) {
   let sku = skuAr.join(",");
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToAddress,
@@ -610,7 +617,7 @@ function parseTataCliqInvoice(Texts) {
     }
   }
 
-  const endDate = getEndDate(new Date(invoiceDate));
+  const { startDate, endDate } = getEndDate(new Date(invoiceDate));
 
   const DELIVER_TO_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().startsWith("deliver to")
@@ -673,7 +680,7 @@ function parseTataCliqInvoice(Texts) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToAddress,
@@ -699,7 +706,7 @@ function parseJioMartInvoice(text) {
   const totalInvoiceAmount = text.match(/(?<=total₹)[\d,.]+/gimu)[0];
 
   let invoiceDateArr = invoiceDate.split(/[\p{Dash}.\/]/gu);
-  const endDate = getEndDate(
+  const { startDate, endDate } = getEndDate(
     new Date(invoiceDateArr[2], invoiceDateArr[1] - 1, invoiceDateArr[0])
   );
 
@@ -724,7 +731,7 @@ function parseJioMartInvoice(text) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     asin,
     sku,
@@ -786,7 +793,7 @@ function parseAjioinvoice(Texts, text) {
   }
 
   let invoiceDateArr = invoiceDate.split(/[\p{Dash}.\/]/gu);
-  const endDate = getEndDate(
+  const { startDate, endDate } = getEndDate(
     new Date(invoiceDateArr[2], invoiceDateArr[1] - 1, invoiceDateArr[0])
   );
 
@@ -827,7 +834,7 @@ function parseAjioinvoice(Texts, text) {
 
   return {
     orderId,
-    invoiceDate,
+    startDate,
     endDate,
     billToName,
     billToState,
@@ -946,7 +953,7 @@ async function parsePdfData(filePath) {
 
         const {
           orderId,
-          invoiceDate,
+          startDate,
           endDate,
           billToName,
           billToState,
@@ -962,7 +969,7 @@ async function parsePdfData(filePath) {
           Platform: platform,
           "Order No": orderId,
           sku: sku?.trim(),
-          "Start date": invoiceDate,
+          "Start date": startDate,
           "END date": endDate,
           "Total warranty (in months)": 18 /* 18 is default value */,
           "ASIN for feedback": asin?.trim(),
