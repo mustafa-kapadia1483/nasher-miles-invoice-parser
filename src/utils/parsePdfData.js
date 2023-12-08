@@ -540,7 +540,7 @@ function parseMyntraInvoice(Texts, text) {
   const FIRST_RS_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().endsWith("rs")
   );
-  let totalInvoiceAmount = text.match(/(?<=totalrs\s+)[\d.]+/gim)?.[0];
+  let totalInvoiceAmount = text.match(/(?<=rs\s)[\d.]+/gim)?.at(-1);
 
   const CESS_TEXT_INDEX = Texts.findIndex(({ R }) =>
     decodeAndExtractText(R[0].T).toLowerCase().startsWith("cess")
