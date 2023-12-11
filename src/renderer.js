@@ -13,7 +13,7 @@ uploadButton.addEventListener("click", async () => {
     "parsePdfData",
     result.filePaths
   );
-  const table = createTable(extractedData);
+  const table = createTable(extractedData, "result-table");
 
   const row = document.createElement("div");
   row.className = "row";
@@ -51,6 +51,7 @@ uploadButton.addEventListener("click", async () => {
   inputsRow.append(col1, col2);
 
   uploadDataButton.addEventListener("click", async () => {
+    uploadDataButton.disabled = true;
     const spreadsheeLinkInput = document.getElementById("sheet-link");
     const sheetNameInput = document.getElementById("sheet-name");
 
@@ -109,14 +110,22 @@ uploadButton.addEventListener("click", async () => {
   });
 });
 
-function createTable(extractedData) {
+function createTable(extractedData, id) {
+  const deleteButtonArray = [];
   const table = document.createElement("table");
+  table.id = id;
   table.className = "ms-table ms-striped mt-5";
 
   const thead = document.createElement("thead");
   const tbody = document.createElement("tbody");
 
   const theadTr = document.createElement("tr");
+
+  const th = document.createElement("th");
+  th.innerText = "Del";
+  th.style.textTransform = "capitalize";
+  theadTr.append(th);
+
   Object.keys(extractedData[0]).forEach(key => {
     const th = document.createElement("th");
     th.innerText = key.replace(/([a-z])([A-Z])/g, "$1 $2");
@@ -126,10 +135,21 @@ function createTable(extractedData) {
 
   thead.append(theadTr);
 
-  for (data of extractedData) {
+  for (let i in extractedData) {
     const tr = document.createElement("tr");
 
-    for (const value of Object.values(data)) {
+    const td = document.createElement("td");
+    const dataDeleteButton = document.createElement("button");
+    dataDeleteButton.textContent = "X";
+    dataDeleteButton.style.background = "red";
+    dataDeleteButton.style.color = "white";
+    dataDeleteButton.dataset.extractedDataIndex = `${i}`;
+
+    deleteButtonArray.push(dataDeleteButton);
+    td.append(dataDeleteButton);
+    tr.append(td);
+
+    for (const value of Object.values(extractedData[i])) {
       const td = document.createElement("td");
       td.innerText = value;
       tr.append(td);
@@ -139,6 +159,28 @@ function createTable(extractedData) {
   }
   table.append(thead);
   table.append(tbody);
+
+  for (let deleteButton of deleteButtonArray) {
+    deleteButton.addEventListener("click", e => {
+      let dataIndex = e.target.dataset.extractedDataIndex;
+      extractedData.splice(dataIndex, 1);
+
+      let parentTr = e.target.closest("tr");
+      parentTr.remove();
+
+      let buttonAr = table.querySelectorAll("button");
+      for (let i = 0; i < buttonAr.length; i++) {
+        buttonAr[i].dataset.extractedDataIndex = `${i}`;
+      }
+
+      console.log(extractedData);
+
+      if (extractedData.length == 0) {
+        uploadButton.disabled = false;
+        table.remove();
+      }
+    });
+  }
 
   return table;
 }

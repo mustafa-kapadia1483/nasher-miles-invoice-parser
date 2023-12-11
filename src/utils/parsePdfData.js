@@ -4,7 +4,6 @@ const titleCase = require("./titleCase");
 const amazonAsinSkuMappingJson = require("../../amazon-asin-sku-mapping.json");
 const flipkartFsnSkuMappingJson = require("../../flipkart-fsn-sku-mapping.json");
 const myntraFsnSkuMappingJson = require("../../myntra-asin-sku-mapping.json");
-const tataCliqFsnSkuMappingJson = require("../../tataCliq-asin-sku-mapping.json");
 const ajioAsinSkuMappingJson = require("../../ajio-asin-sku-mapping.json");
 
 const stateMappingJson = require("../../state-mapping.json");
@@ -127,18 +126,40 @@ function parseNasherMilesInvoice(Texts) {
   // Remove extra , & space
   sku = sku.replace(/,\s+$/, "");
 
-  return {
-    orderId,
-    startDate,
-    endDate,
-    totalInvoiceAmount,
-    billToName,
-    billToState,
-    billToZipCode,
-    billToAddress,
-    sku,
-    asin: "NA",
-  };
+  let result = [];
+
+  console.log(sku);
+  if (sku.includes(",")) {
+    for (let singleSKU of sku.split(",")) {
+      result.push({
+        orderId,
+        startDate,
+        endDate,
+        totalInvoiceAmount,
+        billToName,
+        billToState,
+        billToZipCode,
+        billToAddress,
+        sku: singleSKU,
+        asin: "NA",
+      });
+    }
+  } else {
+    result.push({
+      orderId,
+      startDate,
+      endDate,
+      totalInvoiceAmount,
+      billToName,
+      billToState,
+      billToZipCode,
+      billToAddress,
+      sku,
+      asin: "NA",
+    });
+  }
+
+  return result;
 }
 
 function parseAmazonInvoice(Texts) {
@@ -242,7 +263,9 @@ function parseAmazonInvoice(Texts) {
       let asin = asinAr[i].trim();
 
       if (amazonAsinSkuMappingJson.hasOwnProperty(asin)) {
-        skuAr[i] = amazonAsinSkuMappingJson[asin][0]["seller-sku"];
+        skuAr[i] = amazonAsinSkuMappingJson[asin];
+      } else {
+        skuAr[i] = "NA";
       }
     }
 
@@ -273,18 +296,23 @@ function parseAmazonInvoice(Texts) {
   );
   totalInvoiceAmount = totalInvoiceAmount.replaceAll(/[^\d.]+/g, "");
 
-  return {
-    orderId,
-    startDate,
-    endDate,
-    billToName,
-    billToState,
-    billToZipCode,
-    billToAddress,
-    sku,
-    asin,
-    totalInvoiceAmount,
-  };
+  const result = [];
+  for (let i in asinAr) {
+    result.push({
+      orderId,
+      startDate,
+      endDate,
+      billToName,
+      billToState,
+      billToZipCode,
+      billToAddress,
+      sku: skuAr[i],
+      asin: asinAr[i],
+      totalInvoiceAmount,
+    });
+  }
+
+  return result;
 }
 
 function parseFlipkartInvoice(Texts, text) {
@@ -411,7 +439,7 @@ function parseFlipkartInvoice(Texts, text) {
 
   for (let fsn of fsnAr) {
     if (flipkartFsnSkuMappingJson.hasOwnProperty(fsn)) {
-      skuAr.push(flipkartFsnSkuMappingJson[fsn].sku);
+      skuAr.push(flipkartFsnSkuMappingJson[fsn]);
     } else {
       skuAr.push("NA");
     }
@@ -670,8 +698,8 @@ function parseTataCliqInvoice(Texts) {
   }
 
   for (let i in asinAr) {
-    if (tataCliqFsnSkuMappingJson.hasOwnProperty(asinAr[i])) {
-      skuAr[i] = tataCliqFsnSkuMappingJson[asinAr[i]];
+    if (amazonAsinSkuMappingJson.hasOwnProperty(asinAr[i])) {
+      skuAr[i] = amazonAsinSkuMappingJson[asinAr[i]];
     } else {
       skuAr[i] = "NA";
     }
@@ -723,7 +751,7 @@ function parseJioMartInvoice(text) {
   let skuAr = [];
   for (let asin of asinAr) {
     if (amazonAsinSkuMappingJson.hasOwnProperty(asin)) {
-      skuAr.push(amazonAsinSkuMappingJson[asin][0]["seller-sku"]);
+      skuAr.push(amazonAsinSkuMappingJson[asin]);
     } else {
       skuAr.push("NA");
     }
@@ -953,32 +981,45 @@ async function parsePdfData(filePath) {
           resolve(`Could not parse values from ${filePath}`);
         }
 
-        const {
-          orderId,
-          startDate,
-          endDate,
-          billToName,
-          billToState,
-          billToZipCode,
-          billToAddress,
-          sku,
-          asin,
-          totalInvoiceAmount,
-        } = extractedObj;
+        function getResultObj(obj) {
+          const {
+            orderId,
+            startDate,
+            endDate,
+            billToName,
+            billToState,
+            billToZipCode,
+            billToAddress,
+            sku,
+            asin,
+            totalInvoiceAmount,
+          } = obj;
 
-        resolve({
-          "Customer name": billToName,
-          Platform: platform,
-          "Order No": orderId,
-          sku: sku?.trim(),
-          "Start date": startDate,
-          "END date": endDate,
-          "Total warranty (in months)": 18 /* 18 is default value */,
-          "ASIN for feedback": asin?.trim(),
-          State: billToState,
-          "Zip code": billToZipCode,
-          Value: totalInvoiceAmount,
-        });
+          return {
+            "Customer name": billToName,
+            Platform: platform,
+            "Order No": orderId,
+            sku: sku?.trim(),
+            "Start date": startDate,
+            "END date": endDate,
+            "Total warranty (in months)": 18 /* 18 is default value */,
+            "ASIN for feedback": asin?.trim(),
+            State: billToState,
+            "Zip code": billToZipCode,
+            Value: totalInvoiceAmount,
+          };
+        }
+
+        const result = [];
+        if (extractedObj instanceof Array) {
+          for (let obj of extractedObj) {
+            result.push(getResultObj(obj));
+          }
+        } else {
+          result.push(getResultObj(extractedObj));
+        }
+
+        resolve(result);
       });
       pdfParser.on("pdfParser_dataError", reject);
     });
