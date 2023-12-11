@@ -86,7 +86,7 @@ ipcMain.handle("parsePdfData", async (e, pdfFilePaths) => {
     if (typeof extractedData == "string") {
       new Notification({ title: "Parsing Failed", body: extractedData }).show();
     } else {
-      result.push(extractedData);
+      result.push(...extractedData);
     }
   }
   return result;
