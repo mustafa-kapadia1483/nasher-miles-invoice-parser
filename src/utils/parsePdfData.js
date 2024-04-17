@@ -5,6 +5,7 @@ const amazonAsinSkuMappingJson = require("../../amazon-asin-sku-mapping.json");
 const flipkartFsnSkuMappingJson = require("../../flipkart-fsn-sku-mapping.json");
 const myntraFsnSkuMappingJson = require("../../myntra-asin-sku-mapping.json");
 const ajioAsinSkuMappingJson = require("../../ajio-asin-sku-mapping.json");
+const nmSkuCodeSkuNameMappingJson = require("../../nm-sku-code-sku-name-mapping.json");
 
 const stateMappingJson = require("../../state-mapping.json");
 
@@ -876,6 +877,74 @@ function parseAjioinvoice(Texts, text) {
   };
 }
 
+/* New invoice format for nasher miles website */
+function parseNasherMilesInvoiceNew(Texts, text) {
+  let orderId = text.match(/(?<=extern order no\s+:)\w+\d+/gim)[0];
+
+  let invoiceDate = text.match(/(?<=invoice date\s+:)\w+\s+\d+,\s+\d+/gim)[0];
+  let { startDate, endDate } = getEndDate(new Date(invoiceDate));
+
+  let totalInvoiceAmount = text.match(/(?<=grand\s+total)\d+.\d+/gim)[0];
+
+  const BILLING_ADDRESS_TEXT_INDEX = Texts.findIndex(({ R }) =>
+    R[0].T.startsWith("Billing")
+  );
+
+  const billToName = decodeAndExtractText(
+    Texts[BILLING_ADDRESS_TEXT_INDEX + 2].R[0].T
+  );
+
+  const addressArray = [];
+  for (let i = BILLING_ADDRESS_TEXT_INDEX + 3; i <= Texts.length; i++) {
+    let text = decodeAndExtractText(Texts[i].R[0].T);
+    if (text.includes("@")) break;
+
+    addressArray.push(text);
+  }
+
+  const billToAddress = addressArray.join(", ");
+
+  const billToState = addressArray.at(-2).split(",").at(-1);
+  const billToZipCode = addressArray.at(-1).split("-").at(-1);
+
+  const skuCodeArray = [];
+
+  for (let { R } of Texts) {
+    let skuCode = decodeAndExtractText(R[0].T, /(NM|SB|TT)\w+(?=-)/gm);
+    if (skuCode !== "") {
+      skuCodeArray.push(skuCode);
+    }
+  }
+
+  const skuArray = skuCodeArray.map(
+    skuCode => nmSkuCodeSkuNameMappingJson[skuCode] ?? "NA"
+  );
+
+  const sku = skuArray.join(", ");
+  const asinArray = skuArray.map(sku =>
+    Object.keys(amazonAsinSkuMappingJson).find(
+      asin => amazonAsinSkuMappingJson[asin].toUpperCase() === sku.toUpperCase()
+    )
+  );
+
+  const asin = asinArray.join(", ");
+
+  console.log({ skuCodeArray, skuArray, sku, asinArray });
+
+  return {
+    orderId,
+    startDate,
+    endDate,
+    billToName,
+    billToState,
+    billToAddress,
+    billToZipCode,
+    asin,
+    sku,
+    totalInvoiceAmount,
+  };
+}
+
 async function parsePdfData(filePath) {
   const PDFParser = await import("pdf2json/pdfparser.js");
   const pdfParser = new PDFParser.default();
@@ -969,8 +1038,10 @@ async function parsePdfData(filePath) {
         } else if (text.match(/od\w{18}/gi) !== null) {
           platform = "Flipkart";
           extractedObj = parseFlipkartWithoutFsnInvoice(text);
+        } else if (text.match(/extern order no/gim) !== null) {
+          platform = "Nasher Miles";
+          extractedObj = parseNasherMilesInvoiceNew(Texts, text);
         }
-
         if (
           Object.values(extractedObj).every(
             value => value === null || value === undefined
