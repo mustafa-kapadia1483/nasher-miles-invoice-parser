@@ -991,6 +991,47 @@ function parseBlinkitInvoice(text) {
   };
 }
 
+function parseZeptoInvoice(Texts, text) {
+  const BILL_TO_TEXT_INDEX = Texts.findIndex(({ R }) =>
+    R[0].T.toLowerCase().startsWith("ship")
+  );
+
+  const billToName = decodeAndExtractText(Texts[BILL_TO_TEXT_INDEX + 1].R[0].T);
+  const billToState = text.match(/(?<=place\s+of\s+supply\s+:\s+)\w+/gim)[0];
+
+  const orderId = text.match(/(?<=order\s+no\s+:\s+)[\w\d]+(?=place)/gim)[0];
+  const invoiceDate = text.match(/(?<=Date\s:\s+)[\w\d-]+(?=order)/gim)[0];
+
+  console.log({ invoiceDate });
+
+  const invoiceDateArray = invoiceDate.split(/\p{Dash}/u);
+  const { startDate, endDate } = getEndDate(
+    new Date(
+      invoiceDateArray.at(-1),
+      invoiceDateArray.at(-2) - 1,
+      invoiceDateArray.at(-3)
+    )
+  );
+
+  const totalInvoiceAmount = text.match(/(?<=item\s+total)[\d.]+/gim)[0];
+
+  const skuArray = text.match(/nasher[\s+\w\d\|-]+(?=\dpcs)/gim);
+  const sku = skuArray.join(", ");
+
+  return {
+    orderId,
+    startDate,
+    endDate,
+    billToName,
+    billToState,
+    billToAddress: "",
+    billToZipCode: "",
+    asin: "",
+    sku,
+    totalInvoiceAmount,
+  };
+}
+
 async function parsePdfData(filePath) {
   const PDFParser = await import("pdf2json/pdfparser.js");
   const pdfParser = new PDFParser.default();
@@ -1090,6 +1131,10 @@ async function parsePdfData(filePath) {
         } else if (text.includes("info@blinkit")) {
           platform = "Blinkit";
           extractedObj = parseBlinkitInvoice(text);
+        } else if (text.includes("Geddit Convenience Private")) {
+          platform = "Zepto";
+          console.log("Zepto");
+          extractedObj = parseZeptoInvoice(Texts, text);
         }
         if (
           Object.values(extractedObj).every(
