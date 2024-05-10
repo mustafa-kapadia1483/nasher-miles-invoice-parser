@@ -945,6 +945,52 @@ function parseNasherMilesInvoiceNew(Texts, text) {
   };
 }
 
+function parseBlinkitInvoice(text) {
+  const billToName = text.match(/(?<=name\W)\w+(?=address)/giu)[0];
+  const billToAddress = text.match(/(?<=address:)[\w,\s]+(?=p)/gim)[0];
+  const billToZipCode = text.match(/(?<=pincode:)\d+/gim)[0];
+  const billToState = text.match(/(?<=state:)\w+(?=o)/gim)[0];
+
+  const orderId = text.match(/(?<=OrderId:)\d+/gim)[0];
+
+  const invoiceDate = text.match(
+    /(?<=invoicedate:)[\d\p{Dash}\w]+(?=place)/giu
+  )[0];
+  const { startDate, endDate } = getEndDate(new Date(invoiceDate));
+
+  /* Asin is UPC, which is EAN */
+  const potentialUpcMatches = text.match(/(?<=\d)\d{13}/gim);
+  const asinArray = [];
+  const skuArray = [];
+
+  for (const potentialUpc of potentialUpcMatches) {
+    if (ajioAsinSkuMappingJson.hasOwnProperty(potentialUpc)) {
+      asinArray.push(potentialUpc);
+      skuArray.push(ajioAsinSkuMappingJson[potentialUpc]);
+    }
+  }
+
+  const asin = asinArray.join(", ");
+  const sku = skuArray.join(", ");
+
+  const totalInvoiceAmount = text
+    .match(/(?<=total\d+.\d+.\d{2})\d+.\d{2}/gim)
+    ?.at(-1);
+
+  return {
+    orderId,
+    startDate,
+    endDate,
+    billToName,
+    billToState,
+    billToAddress,
+    billToZipCode,
+    asin,
+    sku,
+    totalInvoiceAmount,
+  };
+}
+
 async function parsePdfData(filePath) {
   const PDFParser = await import("pdf2json/pdfparser.js");
   const pdfParser = new PDFParser.default();
@@ -1041,6 +1087,9 @@ async function parsePdfData(filePath) {
         } else if (text.match(/extern order no/gim) !== null) {
           platform = "Nasher Miles";
           extractedObj = parseNasherMilesInvoiceNew(Texts, text);
+        } else if (text.includes("info@blinkit")) {
+          platform = "Blinkit";
+          extractedObj = parseBlinkitInvoice(text);
         }
         if (
           Object.values(extractedObj).every(
