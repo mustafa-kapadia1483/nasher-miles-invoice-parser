@@ -149,9 +149,22 @@ function createTable(extractedData, id) {
     td.append(dataDeleteButton);
     tr.append(td);
 
-    for (const value of Object.values(extractedData[i])) {
+    for (const [key, value] of Object.entries(extractedData[i])) {
       const td = document.createElement("td");
-      td.innerText = value;
+      const input = document.createElement("input");
+
+      input.value = value;
+      input.dataset.extractedDataIndex = i;
+      input.dataset.extractedDataObjectKey = key;
+
+      /* Input modify */
+      input.addEventListener("change", e => {
+        let { extractedDataIndex, extractedDataObjectKey } = input.dataset;
+        extractedData[extractedDataIndex][extractedDataObjectKey] =
+          e.target.value;
+      });
+
+      td.append(input);
       tr.append(td);
     }
 
